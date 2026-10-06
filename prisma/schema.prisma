@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Reminder {
+  id        String   @id @default(uuid())
+  title     String
+  type      String   // HOMEWORK | PROJECT | TEST
+  subject   String?
+  dueAt     DateTime?
+  notes     String?
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  tasks       Task[]
+  materials   Material[]
+  quizzes     Quiz[]
+  chatMessages ChatMessage[]
+}
+
+model Task {
+  id        String   @id @default(uuid())
+  reminderId String
+  text      String
+  done      Boolean  @default(false)
+  order     Int
+
+  reminder Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+
+  @@index([reminderId])
+}
+
+model Material {
+  id           String   @id @default(uuid())
+  reminderId   String
+  filename     String
+  extractedText String?
+  createdAt    DateTime @default(now())
+
+  reminder Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+
+  @@index([reminderId])
+}
+
+model Quiz {
+  id         String   @id @default(uuid())
+  reminderId String
+  difficulty String
+  createdAt  DateTime @default(now())
+
+  reminder Reminder   @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  questions Question[]
+  attempts  Attempt[]
+
+  @@index([reminderId])
+}
+
+model Question {
+  id          String @id @default(uuid())
+  quizId      String
+  prompt      String
+  options     String // JSON array
+  correctIndex Int
+  explanation String?
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId])
+}
+
+model Attempt {
+  id        String   @id @default(uuid())
+  quizId    String
+  answers   String   // JSON object
+  score     Int?
+  createdAt DateTime @default(now())
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId])
+}
+
+model ChatMessage {
+  id         String   @id @default(uuid())
+  reminderId String?
+  role       String
+  content    String
+  createdAt  DateTime @default(now())
+
+  reminder Reminder? @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+
+  @@index([reminderId])
+}
