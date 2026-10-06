@@ -1,83 +1,129 @@
 # Study Planner
 
-A calm, café-themed study planner built with Next.js, Prisma, and SQLite.
+A calm, café-themed study planner built with Next.js 16, Prisma, and SQLite. Aplikasi ini dirancang untuk membantu mengelola jadwal belajar, melacak tugas, mengekstrak materi dari dokumen, membuat kuis otomatis, serta berdiskusi dengan asisten belajar berbasis konteks materi.
 
-## Features
+---
 
-- **Schedule**: Create and manage study reminders with tasks, materials, and quizzes.
-- **Tasks**: Checklist with progress tracking, inline editing, and reordering.
-- **Materials**: Upload PDF, DOCX, TXT, or MD files with server-side text extraction.
-- **Quizzes**: Generate multiple-choice quizzes from uploaded materials using AI.
-- **Chat**: General study assistant and context-aware chat for each reminder.
-- **Theme**: Calm café dark/light theme with Lora headings and Inter body text.
+## Prerequisites
 
-## Setup
+Sebelum menjalankan aplikasi, pastikan perangkat telah terpasang:
+
+* Node.js versi 18.0 atau yang lebih baru.
+* Package manager (npm, pnpm, atau yarn).
+* SQLite (terintegrasi langsung, tidak memerlukan setup server database eksternal).
+* API Key aktif dari salah satu penyedia AI berikut:
+* Google Gemini API Key
+* OpenAI API Key
+* Anthropic API Key
+
+
+* Tavily API Key (opsional, hanya jika fitur pencarian web pada chat ingin diaktifkan).
+
+---
+
+## Cara Menjalankan Aplikasi
+
+### 1. Instalasi Dependensi
+
+Jalankan perintah berikut pada direktori utama proyek:
 
 ```bash
 npm install
+
 ```
 
-Copy `.env.example` to `.env.local` **in the project root** and fill in your environment variables:
+### 2. Konfigurasi Environment Variables
+
+Duplikasi file `.env.example` menjadi `.env.local`:
 
 ```bash
 cp .env.example .env.local
+
 ```
 
-### AI Configuration
+Buka file `.env.local` dan atur variabel berikut:
 
-The app supports multiple AI providers. Choose one and configure accordingly:
+```env
+DATABASE_URL="file:./dev.db"
 
-- `AI_API_KEY` - Your API key.
-- `LLM_PROVIDER` - Provider to use: `gemini`, `openai`, or `anthropic`. **This must match your API key provider.**
-- `AI_MODEL` - Default model for chat and general AI. If unset, defaults to `gemini-3.8-flash`.
-- `AI_QUIZ_MODEL` - Optional. Model used only for quiz generation. If unset, uses `AI_MODEL`.
+# AI Configuration
+LLM_PROVIDER=gemini
+AI_API_KEY=your_api_key_here
+AI_MODEL=gemini-1.5-flash
+AI_QUIZ_MODEL=
 
-**Important**: The provider must match your API key. For example, if you have an OpenAI key (starts with `sk-`), set `LLM_PROVIDER=openai` and `AI_MODEL=gpt-4o-mini`. If you have a Google/Gemini key (starts with `AIza` or `AQ.`), set `LLM_PROVIDER=gemini`.
+# Web Search
+ENABLE_WEB_SEARCH=false
+TAVILY_API_KEY=
 
-### Other Configuration
+# Upload Configuration
+MAX_UPLOAD_SIZE_MB=500
 
-- `ENABLE_WEB_SEARCH` - Set to `true` to enable web search in chat.
-- `TAVILY_API_KEY` - Tavily API key for web search (only needed if `ENABLE_WEB_SEARCH=true`).
-- `MAX_UPLOAD_SIZE_MB` - Maximum file upload size in MB (default: 500).
+```
 
-> **Important**: After editing `.env.local`, you must restart the dev server for changes to take effect.
+Catatan: Pilihan `LLM_PROVIDER` harus sesuai dengan kunci API yang digunakan:
 
-Initialize the database:
+* Key OpenAI (diawali `sk-`) menggunakan `LLM_PROVIDER=openai`.
+* Key Gemini (diawali `AIza` atau `AQ`) menggunakan `LLM_PROVIDER=gemini`.
+* Key Anthropic (diawali `sk-ant-`) menggunakan `LLM_PROVIDER=anthropic`.
+
+### 3. Migrasi Database
+
+Jalankan migrasi Prisma untuk membuat struktur tabel di SQLite:
 
 ```bash
 npx prisma migrate dev
+
 ```
 
-Run the development server:
+### 4. Jalankan Server Pengembang
 
 ```bash
 npm run dev
+
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the app.
+Aplikasi dapat diakses melalui browser di alamat `http://localhost:3000`.
 
-## Build
+### 5. Build Produksi (Opsional)
+
+Untuk menjalankan versi produksi:
 
 ```bash
 npm run build
 npm run start
+
 ```
 
-## Getting an AI Key
+---
 
-- OpenAI: https://platform.openai.com/api-keys
-- Anthropic: https://console.anthropic.com/settings/keys
-- Google AI (Gemini): https://aistudio.google.com/app/apikey
+## Alur dan Proses AI
 
-## Tech Stack
+Aplikasi mengintegrasikan alur pemrosesan AI dalam beberapa tahap utama:
 
-- Next.js 16 (App Router) + TypeScript
-- Tailwind CSS
-- Prisma + SQLite
-- Zod (validation)
-- pdf-parse + mammoth (document extraction)
-- react-markdown (chat markdown rendering)
+1. Ekstraksi Teks Dokumentasi:
+Dokumen yang diunggah (PDF, DOCX, TXT, MD) diproses langsung di tingkat server menggunakan library `pdf-parse` dan `mammoth`. Teks mentah disimpan ke dalam database untuk dijadikan referensi konteks.
+2. Provider Agnostic Layer:
+Integrasi AI dibangun menggunakan abstraksi adapter. Pergantian penyedia layanan (Gemini, OpenAI, Anthropic) dapat dilakukan cukup dengan mengubah konfigurasi di `.env.local` tanpa perlu mengubah logika kode aplikasi.
+3. Chat Berbasis Konteks:
+Pada ruang obrolan terkait materi tertentu, sistem mengambil teks materi terlampir dari database dan menyisipkannya ke dalam prompt dasar. Hal ini memastikan tanggapan AI relevan dengan bahan ajar pengguna. Apabila fitur pencarian web aktif, sistem memanfaatkan Tavily API untuk mengambil referensi data terbaru.
+4. Pembuatan Kuis Terstruktur:
+Materi yang dipilih dialirkan ke model AI dengan batasan skema output tertentu (diparsing menggunakan Zod) untuk menjamin luaran berupa JSON terstruktur yang berisi daftar pertanyaan pilihan ganda, pilihan jawaban, dan kunci penjelasan.
 
-## Large File Uploads
+---
 
-The app supports chunked uploads for large files (up to several GB). Files are processed from disk to avoid memory issues. For production deployments on Vercel or similar serverless platforms, consider using direct upload to S3/R2/GCS with presigned URLs, as serverless functions have body size limits.
+## Keputusan Teknis
+
+* Next.js 16 (App Router): Dipilih untuk menangani rendering halaman (SSR), routing server-side, serta penanganan Server Actions untuk operasi data form dan pembuatan stream obrolan tanpa membebankan performa klien.
+* SQLite + Prisma ORM: Kombinasi ini menyederhanakan kebutuhan database lokal tanpa perlu instalasi service tambahan, sekaligus menjaga fleksibilitas skema data berkat penanganan *type-safe* dari Prisma.
+* Stream & Chunked Processing untuk Unggahan: File dokumen berukuran besar diproses secara bertahap melalui sistem penyimpanan sementara di disk guna menghindari masalah pemakaian memori berlebih (*Out of Memory*) pada runtime Node.js.
+* Zod Validation: Digunakan untuk memvalidasi masukan pengguna pada endpoint, struktur variabel lingkungan, hingga validasi format JSON dari respons AI untuk pembuatan kuis.
+* Tipografi & Antarmuka: Menggunakan kombinasi Tailwind CSS dengan font Lora untuk judul dan Inter untuk isi teks untuk memberikan kontras visual yang nyaman dibaca pada moda gelap maupun terang.
+
+---
+
+## Sumber API Key AI
+
+* Google Gemini: [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+* OpenAI: [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+* Anthropic: [https://console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
